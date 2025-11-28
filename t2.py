@@ -1,0 +1,60 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+
+data = pd.read_csv("customers.csv")
+
+num_cols = data.select_dtypes(include=['int64','float64']).columns
+data[num_cols] = data[num_cols].fillna(data[num_cols].mean())
+
+cat_cols = data.select_dtypes(include=['object']).columns
+data[cat_cols] = data[cat_cols].fillna(data[cat_cols].mode().iloc[0])
+
+print(data.describe())
+print(data.mode().iloc[0])
+
+features = []
+if 'Annual_Income' in data.columns:
+    features.append('Annual_Income')
+if 'Spending_Score' in data.columns:
+    features.append('Spending_Score')
+if 'Purchase_Frequency' in data.columns:
+    features.append('Purchase_Frequency')
+if 'Avg_Purchase_Value' in data.columns:
+    features.append('Avg_Purchase_Value')
+
+x = data[features]
+scaled = StandardScaler().fit_transform(x)
+
+inertia_vals = []
+for i in range(1,11):
+    km = KMeans(n_clusters=i, init='k-means++', random_state=42)
+    km.fit(scaled)
+    inertia_vals.append(km.inertia_)
+
+plt.figure(figsize=(10,5))
+plt.plot(range(1,11), inertia_vals, marker='o')
+plt.title("Elbow Curve")
+plt.xlabel("Cluster Count")
+plt.ylabel("Inertia")
+plt.show()
+
+k = 4
+model = KMeans(n_clusters=k, init='k-means++', random_state=42)
+data['Cluster'] = model.fit_predict(scaled)
+
+plt.figure(figsize=(10,6))
+sns.scatterplot(x=data[features[0]], y=data[features[1]], hue=data['Cluster'], palette="tab10")
+plt.title("Customer Segmentation")
+plt.show()
+
+cluster_info = data.groupby('Cluster')[features].mean()
+print(cluster_info)
+
+for c in cluster_info.index:
+    print("Cluster", c, "Profile:", cluster_info.loc[c].to_dict())
+
+    
